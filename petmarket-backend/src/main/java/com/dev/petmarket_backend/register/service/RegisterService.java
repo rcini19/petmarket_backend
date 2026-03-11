@@ -1,0 +1,47 @@
+package com.dev.petmarket_backend.register.service;
+
+import com.dev.petmarket_backend.common.dto.AuthResponse;
+import com.dev.petmarket_backend.common.model.User;
+import com.dev.petmarket_backend.common.repository.UserRepository;
+import com.dev.petmarket_backend.common.security.JwtUtil;
+import com.dev.petmarket_backend.register.dto.RegisterRequest;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class RegisterService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+
+    public RegisterService(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           JwtUtil jwtUtil) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+    }
+
+    public AuthResponse register(RegisterRequest request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("An account with this email already exists");
+        }
+
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setFullName(request.getFullName());
+        user.setRole("USER");
+
+        userRepository.save(user);
+
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+
+        return new AuthResponse(token, user.getEmail(), user.getFullName(), user.getRole(), "Registration successful");
+    }
+}
