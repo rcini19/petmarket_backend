@@ -8,6 +8,8 @@ import com.dev.petmarket_backend.login.dto.LoginRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
+
 @Service
 public class LoginService {
 
@@ -24,11 +26,27 @@ public class LoginService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailIgnoreCase(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new IllegalArgumentException("Invalid email or password");
+        }
+
+        String selectedRole = request.getLoginAs() == null
+                ? ""
+                : request.getLoginAs().trim().toUpperCase(Locale.ROOT);
+
+        if (!"USER".equals(selectedRole) && !"ADMIN".equals(selectedRole)) {
+            throw new IllegalArgumentException("Invalid role selected");
+        }
+
+        String accountRole = user.getRole() == null
+                ? "USER"
+                : user.getRole().trim().toUpperCase(Locale.ROOT);
+
+        if (!accountRole.equals(selectedRole)) {
+            throw new IllegalArgumentException("Selected role does not match this account");
         }
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());

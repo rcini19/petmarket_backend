@@ -33,14 +33,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+        String token = resolveBearerToken(request.getHeader("Authorization"));
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
+        if (token != null && !token.isBlank()) {
 
             if (jwtUtil.validateToken(token)) {
                 String email = jwtUtil.getEmailFromToken(token);
-                Optional<User> userOpt = userRepository.findByEmail(email);
+                Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
 
                 if (userOpt.isPresent()) {
                     User user = userOpt.get();
@@ -59,5 +58,29 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveBearerToken(String authHeader) {
+        if (authHeader == null) {
+            return null;
+        }
+
+        String normalizedHeader = authHeader.trim();
+        if (normalizedHeader.length() < 7 || !normalizedHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return null;
+        }
+
+        String token = normalizedHeader.substring(7).trim();
+
+        if (token.startsWith("\"") && token.endsWith("\"") && token.length() > 1) {
+            token = token.substring(1, token.length() - 1).trim();
+        }
+
+        int commaIndex = token.indexOf(',');
+        if (commaIndex > 0) {
+            token = token.substring(0, commaIndex).trim();
+        }
+
+        return token;
     }
 }
