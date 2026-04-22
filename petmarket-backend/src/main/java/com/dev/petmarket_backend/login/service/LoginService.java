@@ -33,6 +33,10 @@ public class LoginService {
             throw new IllegalArgumentException("Invalid email or password");
         }
 
+        if (user.isSuspended()) {
+            throw new IllegalArgumentException("This account is suspended. Contact support.");
+        }
+
         String selectedRole = request.getLoginAs() == null
                 ? ""
                 : request.getLoginAs().trim().toUpperCase(Locale.ROOT);

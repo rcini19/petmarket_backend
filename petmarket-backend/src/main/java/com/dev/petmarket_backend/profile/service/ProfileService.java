@@ -3,22 +3,29 @@ package com.dev.petmarket_backend.profile.service;
 import com.dev.petmarket_backend.common.model.User;
 import com.dev.petmarket_backend.common.repository.UserRepository;
 import com.dev.petmarket_backend.common.security.JwtUtil;
+import com.dev.petmarket_backend.pet.model.PetListing;
 import com.dev.petmarket_backend.profile.dto.ChangePasswordRequest;
 import com.dev.petmarket_backend.profile.dto.HistoryItemResponse;
 import com.dev.petmarket_backend.profile.dto.PhotoUploadResponse;
 import com.dev.petmarket_backend.profile.dto.ProfileResponse;
 import com.dev.petmarket_backend.profile.dto.UpdatePhotoRequest;
 import com.dev.petmarket_backend.profile.dto.UpdateProfileRequest;
+import com.dev.petmarket_backend.purchase.model.Purchase;
+import com.dev.petmarket_backend.purchase.repository.PurchaseRepository;
+import com.dev.petmarket_backend.trade.model.TradeOffer;
+import com.dev.petmarket_backend.trade.repository.TradeOfferRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileService {
@@ -26,17 +33,24 @@ public class ProfileService {
     private static final int MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
     private static final Pattern IMAGE_DATA_URL_PATTERN =
             Pattern.compile("^data:image/(png|jpe?g);base64,([A-Za-z0-9+/=\\r\\n]+)$", Pattern.CASE_INSENSITIVE);
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final PurchaseRepository purchaseRepository;
+    private final TradeOfferRepository tradeOfferRepository;
 
     public ProfileService(UserRepository userRepository,
                           PasswordEncoder passwordEncoder,
-                          JwtUtil jwtUtil) {
+                          JwtUtil jwtUtil,
+                          PurchaseRepository purchaseRepository,
+                          TradeOfferRepository tradeOfferRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.purchaseRepository = purchaseRepository;
+        this.tradeOfferRepository = tradeOfferRepository;
     }
 
     public ProfileResponse getProfile(String email) {
@@ -171,13 +185,42 @@ public class ProfileService {
     }
 
     public List<HistoryItemResponse> getOrderHistory(String email) {
-        getUserByEmail(email);
-        return List.of();
+        User user = getUserByEmail(email);
+        List<Purchase> purchases = purchaseRepository.findByBuyerOrderByCreatedAtDesc(user);
+
+        return purchases.stream().map(purchase -> {
+            PetListing pet = purchase.getPet();
+            return new HistoryItemResponse(
+                    String.valueOf(purchase.getId()),
+                    pet.getName(),
+                    purchase.getCreatedAt().format(DATE_FORMATTER),
+                    pet.getBreed() + " • " + pet.getSpecies(),
+                    "COMPLETED",
+                    purchase.getTotalPrice().doubleValue()
+            );
+        }).collect(Collectors.toList());
     }
 
     public List<HistoryItemResponse> getTradeHistory(String email) {
-        getUserByEmail(email);
-        return List.of();
+        User user = getUserByEmail(email);
+        List<TradeOffer> trades = tradeOfferRepository.findAcceptedTradesForUser(user);
+
+        return trades.stream().map(trade -> {
+            PetListing offeredPet = trade.getOfferedPet();
+            PetListing requestedPet = trade.getRequestedPet();
+            boolean wasOfferingUser = trade.getOfferingUser().getId().equals(user.getId());
+            PetListing receivedPet = wasOfferingUser ? requestedPet : offeredPet;
+            PetListing givenPet = wasOfferingUser ? offeredPet : requestedPet;
+
+            return new HistoryItemResponse(
+                    String.valueOf(trade.getId()),
+                    "Received: " + receivedPet.getName(),
+                    trade.getRespondedAt() != null ? trade.getRespondedAt().format(DATE_FORMATTER) : trade.getCreatedAt().format(DATE_FORMATTER),
+                    "Traded: " + givenPet.getName() + " • " + receivedPet.getBreed(),
+                    "ACCEPTED",
+                    0.0
+            );
+        }).collect(Collectors.toList());
     }
 
     private User getUserByEmail(String email) {
