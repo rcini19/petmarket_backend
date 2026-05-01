@@ -7,14 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -23,6 +16,8 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final int DEFAULT_PAGE_SIZE = 20;
 
     public AdminController(AdminService adminService) {
         this.adminService = adminService;
@@ -42,9 +37,23 @@ public class AdminController {
     }
 
     @GetMapping("/pets")
-    public ResponseEntity<?> getAllPets(Authentication authentication) {
+    public ResponseEntity<?> getAllPets(Authentication authentication,
+                                        @RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = DEFAULT_PAGE_SIZE + "") int pageSize) {
         try {
-            return ResponseEntity.ok(adminService.getAllPets(authentication.getName()));
+            // Validate pagination parameters
+            if (page < 0) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Page number must be >= 0"));
+            }
+            if (pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
+                return ResponseEntity.badRequest().body(
+                        new ErrorResponse("Page size must be between 1 and " + MAX_PAGE_SIZE)
+                );
+            }
+
+            return ResponseEntity.ok(
+                    adminService.getPetsWithPagination(authentication.getName(), page, pageSize)
+            );
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(e.getMessage()));
         } catch (IllegalArgumentException e) {
@@ -65,9 +74,23 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<?> getAllUsers(Authentication authentication) {
+    public ResponseEntity<?> getAllUsers(Authentication authentication,
+                                         @RequestParam(defaultValue = "0") int page,
+                                         @RequestParam(defaultValue = DEFAULT_PAGE_SIZE + "") int pageSize) {
         try {
-            return ResponseEntity.ok(adminService.getAllUsers(authentication.getName()));
+            // Validate pagination parameters
+            if (page < 0) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Page number must be >= 0"));
+            }
+            if (pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
+                return ResponseEntity.badRequest().body(
+                        new ErrorResponse("Page size must be between 1 and " + MAX_PAGE_SIZE)
+                );
+            }
+
+            return ResponseEntity.ok(
+                    adminService.getUsersWithPagination(authentication.getName(), page, pageSize)
+            );
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(e.getMessage()));
         } catch (IllegalArgumentException e) {
@@ -86,3 +109,4 @@ public class AdminController {
         }
     }
 }
+

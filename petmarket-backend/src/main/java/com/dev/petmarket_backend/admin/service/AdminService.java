@@ -4,11 +4,18 @@ import com.dev.petmarket_backend.admin.dto.AdminUserResponse;
 import com.dev.petmarket_backend.admin.dto.AdminModerationUserResponse;
 import com.dev.petmarket_backend.admin.dto.AdminPetResponse;
 import com.dev.petmarket_backend.admin.dto.CreateAdminRequest;
+import com.dev.petmarket_backend.common.dto.PageInfo;
+import com.dev.petmarket_backend.common.dto.PaginatedResponse;
 import com.dev.petmarket_backend.common.model.User;
 import com.dev.petmarket_backend.common.repository.UserRepository;
+import com.dev.petmarket_backend.pet.model.PetListing;
 import com.dev.petmarket_backend.pet.repository.PetListingRepository;
 import com.dev.petmarket_backend.purchase.repository.PurchaseRepository;
 import com.dev.petmarket_backend.trade.repository.TradeOfferRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -69,6 +76,73 @@ public class AdminService {
         );
     }
 
+    /**
+     * Get all pets with pagination support
+     */
+    public PaginatedResponse<AdminPetResponse> getPetsWithPagination(String requesterEmail, int page, int pageSize) {
+        ensureAdmin(requesterEmail);
+        requireModerationDependencies();
+
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<PetListing> pageResult = petListingRepository.findAll(pageable);
+
+        List<AdminPetResponse> content = pageResult.getContent().stream()
+                .map(pet -> new AdminPetResponse(
+                        pet.getId(),
+                        pet.getName(),
+                        pet.getSpecies(),
+                        pet.getBreed(),
+                        pet.getListingType(),
+                        pet.getStatus(),
+                        pet.getPrice(),
+                        pet.getOwner().getFullName()
+                ))
+                .toList();
+
+        PageInfo pageInfo = new PageInfo(
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
+
+        return new PaginatedResponse<>(content, pageInfo);
+    }
+
+    /**
+     * Get all users with pagination support
+     */
+    public PaginatedResponse<AdminModerationUserResponse> getUsersWithPagination(String requesterEmail, int page, int pageSize) {
+        ensureAdmin(requesterEmail);
+        requireModerationDependencies();
+
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<User> pageResult = userRepository.findAll(pageable);
+
+        List<AdminModerationUserResponse> content = pageResult.getContent().stream()
+                .map(user -> new AdminModerationUserResponse(
+                        user.getId(),
+                        user.getFullName(),
+                        user.getEmail(),
+                        user.getRole(),
+                        user.isSuspended(),
+                        user.getCreatedAt(),
+                        purchaseRepository.countByBuyer(user),
+                        tradeOfferRepository.countByOfferingUser(user)
+                ))
+                .toList();
+
+        PageInfo pageInfo = new PageInfo(
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
+
+        return new PaginatedResponse<>(content, pageInfo);
+    }
+
+    // Legacy methods (kept for backward compatibility)
     public List<AdminPetResponse> getAllPets(String requesterEmail) {
         ensureAdmin(requesterEmail);
         requireModerationDependencies();
@@ -164,3 +238,4 @@ public class AdminService {
         return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
     }
 }
+
