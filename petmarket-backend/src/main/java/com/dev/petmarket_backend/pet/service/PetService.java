@@ -1,5 +1,7 @@
 package com.dev.petmarket_backend.pet.service;
 
+import com.dev.petmarket_backend.common.dto.PageInfo;
+import com.dev.petmarket_backend.common.dto.PaginatedResponse;
 import com.dev.petmarket_backend.common.model.User;
 import com.dev.petmarket_backend.common.repository.UserRepository;
 import com.dev.petmarket_backend.pet.dto.PetRequest;
@@ -7,6 +9,10 @@ import com.dev.petmarket_backend.pet.dto.PetResponse;
 import com.dev.petmarket_backend.pet.model.PetListing;
 import com.dev.petmarket_backend.pet.repository.PetListingRepository;
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -26,44 +32,55 @@ public class PetService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Get pets with pagination support
+     */
+    public PaginatedResponse<PetResponse> getPetsWithPagination(String search, String listingType, String status, int page, int pageSize) {
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Specification<PetListing> spec = buildPetSpecification(search, listingType, status);
+        Page<PetListing> pageResult = petListingRepository.findAll(spec, pageable);
+
+        List<PetResponse> content = pageResult.getContent().stream()
+                .map(this::toResponse)
+                .toList();
+
+        PageInfo pageInfo = new PageInfo(
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
+
+        return new PaginatedResponse<>(content, pageInfo);
+    }
+
+    /**
+     * Get user's pets with pagination support
+     */
+    public PaginatedResponse<PetResponse> getMyPetsWithPagination(String requesterEmail, int page, int pageSize) {
+        User user = getUserByEmail(requesterEmail);
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<PetListing> pageResult = petListingRepository.findByOwnerAndStatus(user, "AVAILABLE", pageable);
+
+        List<PetResponse> content = pageResult.getContent().stream()
+                .map(this::toResponse)
+                .toList();
+
+        PageInfo pageInfo = new PageInfo(
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
+
+        return new PaginatedResponse<>(content, pageInfo);
+    }
+
+    // Legacy methods (kept for backward compatibility)
     public List<PetResponse> getPets(String search, String listingType, String status) {
-        Specification<PetListing> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (search != null && !search.isBlank()) {
-                String keyword = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("name")), keyword),
-                        cb.like(cb.lower(root.get("species")), keyword),
-                        cb.like(cb.lower(root.get("breed")), keyword)
-                ));
-            }
-
-            if (listingType != null && !listingType.isBlank()) {
-                String normalizedType = normalizeListingType(listingType);
-                if ("SALE".equals(normalizedType)) {
-                    predicates.add(cb.or(
-                            cb.equal(root.get("listingType"), "SALE"),
-                            cb.equal(root.get("listingType"), "BOTH")
-                    ));
-                } else if ("TRADE".equals(normalizedType)) {
-                    predicates.add(cb.or(
-                            cb.equal(root.get("listingType"), "TRADE"),
-                            cb.equal(root.get("listingType"), "BOTH")
-                    ));
-                }
-            }
-
-            if (status != null && !status.isBlank()) {
-                predicates.add(cb.equal(root.get("status"), status.trim().toUpperCase(Locale.ROOT)));
-            } else {
-                predicates.add(cb.equal(root.get("status"), "AVAILABLE"));
-            }
-
-            query.orderBy(cb.desc(root.get("createdAt")));
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
+        Specification<PetListing> spec = buildPetSpecification(search, listingType, status);
         return petListingRepository.findAll(spec)
                 .stream()
                 .map(this::toResponse)
@@ -133,6 +150,44 @@ public class PetService {
         PetListing pet = petListingRepository.findById(petId)
                 .orElseThrow(() -> new IllegalArgumentException("Pet listing not found"));
         petListingRepository.delete(pet);
+    }
+
+    private Specification<PetListing> buildPetSpecification(String search, String listingType, String status) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (search != null && !search.isBlank()) {
+                String keyword = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("name")), keyword),
+                        cb.like(cb.lower(root.get("species")), keyword),
+                        cb.like(cb.lower(root.get("breed")), keyword)
+                ));
+            }
+
+            if (listingType != null && !listingType.isBlank()) {
+                String normalizedType = normalizeListingType(listingType);
+                if ("SALE".equals(normalizedType)) {
+                    predicates.add(cb.or(
+                            cb.equal(root.get("listingType"), "SALE"),
+                            cb.equal(root.get("listingType"), "BOTH")
+                    ));
+                } else if ("TRADE".equals(normalizedType)) {
+                    predicates.add(cb.or(
+                            cb.equal(root.get("listingType"), "TRADE"),
+                            cb.equal(root.get("listingType"), "BOTH")
+                    ));
+                }
+            }
+
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status.trim().toUpperCase(Locale.ROOT)));
+            } else {
+                predicates.add(cb.equal(root.get("status"), "AVAILABLE"));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     private void applyRequestToPet(PetListing pet, PetRequest request) {

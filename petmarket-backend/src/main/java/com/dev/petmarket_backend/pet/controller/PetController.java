@@ -1,6 +1,7 @@
 package com.dev.petmarket_backend.pet.controller;
 
 import com.dev.petmarket_backend.common.dto.ErrorResponse;
+import com.dev.petmarket_backend.common.dto.PaginatedResponse;
 import com.dev.petmarket_backend.pet.dto.PetRequest;
 import com.dev.petmarket_backend.pet.dto.PetResponse;
 import com.dev.petmarket_backend.pet.service.PetService;
@@ -18,21 +19,57 @@ import java.util.Map;
 public class PetController {
 
     private final PetService petService;
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final int DEFAULT_PAGE_SIZE = 20;
 
     public PetController(PetService petService) {
         this.petService = petService;
     }
 
     @GetMapping
-    public ResponseEntity<List<PetResponse>> getPets(@RequestParam(required = false) String search,
-                                                     @RequestParam(required = false) String listingType,
-                                                     @RequestParam(required = false) String status) {
-        return ResponseEntity.ok(petService.getPets(search, listingType, status));
+    public ResponseEntity<?> getPets(@RequestParam(required = false) String search,
+                                     @RequestParam(required = false) String listingType,
+                                     @RequestParam(required = false) String status,
+                                     @RequestParam(defaultValue = "0") int page,
+                                     @RequestParam(defaultValue = DEFAULT_PAGE_SIZE + "") int pageSize) {
+        try {
+            // Validate pagination parameters
+            if (page < 0) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Page number must be >= 0"));
+            }
+            if (pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
+                return ResponseEntity.badRequest().body(
+                        new ErrorResponse("Page size must be between 1 and " + MAX_PAGE_SIZE)
+                );
+            }
+
+            PaginatedResponse<PetResponse> response = petService.getPetsWithPagination(search, listingType, status, page, pageSize);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        }
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<PetResponse>> getMyPets(Authentication authentication) {
-        return ResponseEntity.ok(petService.getMyPets(authentication.getName()));
+    public ResponseEntity<?> getMyPets(Authentication authentication,
+                                       @RequestParam(defaultValue = "0") int page,
+                                       @RequestParam(defaultValue = DEFAULT_PAGE_SIZE + "") int pageSize) {
+        try {
+            // Validate pagination parameters
+            if (page < 0) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Page number must be >= 0"));
+            }
+            if (pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
+                return ResponseEntity.badRequest().body(
+                        new ErrorResponse("Page size must be between 1 and " + MAX_PAGE_SIZE)
+                );
+            }
+
+            PaginatedResponse<PetResponse> response = petService.getMyPetsWithPagination(authentication.getName(), page, pageSize);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        }
     }
 
     @GetMapping("/{id}")

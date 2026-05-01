@@ -36,11 +36,22 @@ public class RegisterService {
             throw new IllegalArgumentException("An account with this email already exists");
         }
 
+        // Validate and normalize role; default to USER if not provided or invalid
+        String userRole = "USER";
+        if (request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            String normalizedRole = request.getRole().trim().toUpperCase();
+            if ("ADMIN".equals(normalizedRole) || "USER".equals(normalizedRole)) {
+                userRole = normalizedRole;
+            } else {
+                throw new IllegalArgumentException("Invalid role. Allowed values: USER, ADMIN");
+            }
+        }
+
         User user = new User();
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName());
-        user.setRole("USER");
+        user.setRole(userRole);
 
         userRepository.save(user);
 
