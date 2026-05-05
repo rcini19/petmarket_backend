@@ -15,6 +15,9 @@ public interface TradeOfferRepository extends JpaRepository<TradeOffer, Long> {
     @Query("SELECT t FROM TradeOffer t WHERE (t.offeringUser = :user OR t.offeredPet.owner = :user OR t.requestedPet.owner = :user) AND t.status = 'ACCEPTED' ORDER BY t.respondedAt DESC")
     List<TradeOffer> findAcceptedTradesForUser(@Param("user") User user);
 
+    @Query("SELECT t FROM TradeOffer t WHERE t.offeringUser = :user OR t.offeredPet.owner = :user OR t.requestedPet.owner = :user ORDER BY t.createdAt DESC")
+    List<TradeOffer> findTradesForUser(@Param("user") User user);
+
     boolean existsByOfferedPet_IdAndStatus(Long petId, String status);
     boolean existsByRequestedPet_IdAndStatus(Long petId, String status);
 }

@@ -123,8 +123,11 @@ public class TradeService {
         return toResponse(tradeOfferRepository.save(trade));
     }
 
-    public List<TradeResponse> getTrades() {
-        return tradeOfferRepository.findAll()
+    public List<TradeResponse> getTrades(String requesterEmail) {
+        User requester = userRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Requester account not found"));
+
+        return tradeOfferRepository.findTradesForUser(requester)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -148,12 +151,17 @@ public class TradeService {
                 trade.getId(),
                 trade.getOfferedPet().getId(),
                 trade.getOfferedPet().getName(),
+                trade.getOfferedPet().getOwner().getId(),
+                trade.getOfferedPet().getOwner().getFullName(),
                 trade.getRequestedPet().getId(),
                 trade.getRequestedPet().getName(),
+                trade.getRequestedPet().getOwner().getId(),
+                trade.getRequestedPet().getOwner().getFullName(),
                 trade.getOfferingUser().getId(),
                 trade.getOfferingUser().getFullName(),
                 trade.getStatus(),
-                trade.getCreatedAt()
+                trade.getCreatedAt(),
+                trade.getRespondedAt()
         );
     }
 }

@@ -58,7 +58,11 @@ public class TradeController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TradeResponse>> getTrades() {
-        return ResponseEntity.ok(tradeService.getTrades());
+    public ResponseEntity<?> getTrades(Authentication authentication) {
+        try {
+            return ResponseEntity.ok(tradeService.getTrades(authentication.getName()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        }
     }
 }
