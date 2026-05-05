@@ -250,6 +250,7 @@ public class ProfileService {
         String accountType = "ADMIN".equalsIgnoreCase(role) ? "Administrator" : "Member";
 
         return new ProfileResponse(
+                user.getId(),
                 user.getFullName(),
                 user.getEmail(),
                 role,

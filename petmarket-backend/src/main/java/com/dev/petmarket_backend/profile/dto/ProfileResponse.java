@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public class ProfileResponse {
 
+    private Long id;
     private String fullName;
     private String email;
     private String role;
@@ -12,12 +13,14 @@ public class ProfileResponse {
     private String profileImageUrl;
     private String token;
 
-    public ProfileResponse(String fullName,
+    public ProfileResponse(Long id,
+                           String fullName,
                            String email,
                            String role,
                            String accountType,
                            LocalDateTime memberSince,
                            String profileImageUrl) {
+        this.id = id;
         this.fullName = fullName;
         this.email = email;
         this.role = role;
@@ -32,8 +35,19 @@ public class ProfileResponse {
                            String role,
                            String accountType,
                            LocalDateTime memberSince,
+                           String profileImageUrl) {
+        this(null, fullName, email, role, accountType, memberSince, profileImageUrl);
+    }
+
+    public ProfileResponse(Long id,
+                           String fullName,
+                           String email,
+                           String role,
+                           String accountType,
+                           LocalDateTime memberSince,
                            String profileImageUrl,
                            String token) {
+        this.id = id;
         this.fullName = fullName;
         this.email = email;
         this.role = role;
@@ -41,6 +55,24 @@ public class ProfileResponse {
         this.memberSince = memberSince;
         this.profileImageUrl = profileImageUrl;
         this.token = token;
+    }
+
+    public ProfileResponse(String fullName,
+                           String email,
+                           String role,
+                           String accountType,
+                           LocalDateTime memberSince,
+                           String profileImageUrl,
+                           String token) {
+        this(null, fullName, email, role, accountType, memberSince, profileImageUrl, token);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getFullName() {

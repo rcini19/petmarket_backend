@@ -57,6 +57,6 @@ public class RegisterService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
 
-        return new AuthResponse(token, user.getEmail(), user.getFullName(), user.getRole(), "Registration successful");
+        return new AuthResponse(token, user.getId(), user.getEmail(), user.getFullName(), user.getRole(), "Registration successful");
     }
 }

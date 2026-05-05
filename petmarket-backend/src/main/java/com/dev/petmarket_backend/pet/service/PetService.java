@@ -62,7 +62,7 @@ public class PetService {
         User user = getUserByEmail(requesterEmail);
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<PetListing> pageResult = petListingRepository.findByOwnerAndStatus(user, "AVAILABLE", pageable);
+        Page<PetListing> pageResult = petListingRepository.findByOwner(user, pageable);
 
         List<PetResponse> content = pageResult.getContent().stream()
                 .map(this::toResponse)
@@ -89,7 +89,7 @@ public class PetService {
 
     public List<PetResponse> getMyPets(String requesterEmail) {
         User user = getUserByEmail(requesterEmail);
-        return petListingRepository.findByOwnerAndStatusOrderByCreatedAtDesc(user, "AVAILABLE")
+        return petListingRepository.findByOwnerOrderByCreatedAtDesc(user)
                 .stream()
                 .map(this::toResponse)
                 .toList();

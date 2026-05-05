@@ -14,6 +14,7 @@ public interface PetListingRepository extends JpaRepository<PetListing, Long>, J
 
     List<PetListing> findByOwnerAndStatusOrderByCreatedAtDesc(User owner, String status);
 
+    Page<PetListing> findByOwner(User owner, Pageable pageable);
+
     Page<PetListing> findByOwnerAndStatus(User owner, String status, Pageable pageable);
 }
-
