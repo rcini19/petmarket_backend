@@ -46,6 +46,10 @@ public class TradeService {
             throw new IllegalArgumentException("You cannot trade for your own pet");
         }
 
+        if (!isTradeType(offeredPet.getListingType())) {
+            throw new IllegalArgumentException("Offered pet must be listed for Trade");
+        }
+
         if (!isTradeType(requestedPet.getListingType())) {
             throw new IllegalArgumentException("Requested pet must be marked for Trade");
         }
