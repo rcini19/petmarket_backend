@@ -8,6 +8,7 @@ import com.dev.petmarket_backend.login.dto.LoginRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Base64;
 import java.util.Locale;
 
 @Service
@@ -55,6 +56,25 @@ public class LoginService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
 
-        return new AuthResponse(token, user.getId(), user.getEmail(), user.getFullName(), user.getRole(), "Login successful");
+        return new AuthResponse(
+                token,
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole(),
+                buildProfileImageDataUrl(user),
+                "Login successful"
+        );
+    }
+
+    private String buildProfileImageDataUrl(User user) {
+        byte[] imageBytes = user.getProfileImageData();
+        String contentType = user.getProfileImageContentType();
+
+        if (imageBytes == null || imageBytes.length == 0 || contentType == null || contentType.isBlank()) {
+            return null;
+        }
+
+        return "data:" + contentType + ";base64," + Base64.getEncoder().encodeToString(imageBytes);
     }
 }
