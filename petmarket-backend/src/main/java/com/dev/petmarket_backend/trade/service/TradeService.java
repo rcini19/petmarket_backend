@@ -9,6 +9,7 @@ import com.dev.petmarket_backend.trade.dto.TradeResponse;
 import com.dev.petmarket_backend.trade.model.TradeOffer;
 import com.dev.petmarket_backend.trade.repository.TradeOfferRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +29,7 @@ public class TradeService {
         this.userRepository = userRepository;
     }
 
+    @Transactional
     public TradeResponse createTrade(String requesterEmail, TradeRequest request) {
         User offeringUser = userRepository.findByEmailIgnoreCase(requesterEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Offering user not found"));
@@ -67,6 +69,7 @@ public class TradeService {
         return toResponse(tradeOfferRepository.save(tradeOffer));
     }
 
+    @Transactional
     public TradeResponse acceptTrade(String requesterEmail, Long tradeId) {
         TradeOffer trade = getTrade(tradeId);
         PetListing requestedPet = trade.getRequestedPet();
@@ -97,15 +100,23 @@ public class TradeService {
         requestedPet.setStatus("TRADED");
         offeredPet.setStatus("TRADED");
 
-        petListingRepository.save(requestedPet);
-        petListingRepository.save(offeredPet);
-
         trade.setStatus("ACCEPTED");
-        trade.setRespondedAt(LocalDateTime.now());
+        LocalDateTime respondedAt = LocalDateTime.now();
+        trade.setRespondedAt(respondedAt);
 
-        return toResponse(tradeOfferRepository.save(trade));
+        petListingRepository.saveAndFlush(requestedPet);
+        petListingRepository.saveAndFlush(offeredPet);
+        TradeOffer savedTrade = tradeOfferRepository.saveAndFlush(trade);
+        tradeOfferRepository.rejectOtherPendingTradesForPets(
+                savedTrade.getId(),
+                List.of(offeredPet.getId(), requestedPet.getId()),
+                respondedAt
+        );
+
+        return toResponse(savedTrade);
     }
 
+    @Transactional
     public TradeResponse rejectTrade(String requesterEmail, Long tradeId) {
         TradeOffer trade = getTrade(tradeId);
         PetListing requestedPet = trade.getRequestedPet();
